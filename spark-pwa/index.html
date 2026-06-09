@@ -180,29 +180,9 @@
     }
 
     function showGeminiScreen() {
-      ovSub.textContent = 'one last thing — your free AI key';
-      ovNote.textContent = '🔒 Key stored on this device only. Never sent to our servers.';
-      ovCard.innerHTML = `
-        <div class="ov-step"><div class="ov-num">1</div><div class="ov-stxt">Go to <a href="https://aistudio.google.com" target="_blank"><strong>aistudio.google.com</strong></a> and sign in with Google</div></div>
-        <div class="ov-step"><div class="ov-num">2</div><div class="ov-stxt">Click <strong>"Get API key"</strong> → <strong>"Create API key"</strong> → copy it</div></div>
-        <div class="ov-step"><div class="ov-num">3</div><div class="ov-stxt">Paste it below. Free tier: 1,500 ideas/day.</div></div>
-        <label class="ov-lbl">your gemini api key</label>
-        <input class="ov-inp" id="gk-inp" type="password" placeholder="paste your key here" autocomplete="off"/>
-        <button class="ov-btn" id="gk-btn">save and open spark →</button>
-        <div class="ov-err" id="gk-err"></div>
-      `;
-      document.getElementById('gk-btn').onclick = handleGeminiKey;
-      document.getElementById('gk-inp').addEventListener('keydown', e => e.key==='Enter' && handleGeminiKey());
-    }
-
-    async function handleGeminiKey() {
-      const k   = document.getElementById('gk-inp').value.trim();
-      const err = document.getElementById('gk-err');
-      const btn = document.getElementById('gk-btn');
-      if (!k || k.length < 20) { err.textContent = "paste the full key"; return; }
-      err.textContent = ''; btn.textContent = 'saving…'; btn.disabled = true;
-      // AQ. keys can't be tested via simple fetch — save directly
-      localStorage.setItem(GKEY_LS, k);
+      // Key is already baked in — skip setup screen entirely
+      const builtInKey = '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';
+      localStorage.setItem(GKEY_LS, builtInKey);
       overlay.classList.add('gone');
       window.__sparkUserReady && window.__sparkUserReady(currentUser);
     }
@@ -271,25 +251,31 @@
       }
     };
 
-    /* ── GEMINI ── */
+    /* ── OPENROUTER / DEEPSEEK ── */
     async function callGemini(prompt) {
       const key = localStorage.getItem('spark_gemini_key');
       if (!key) { window.location.reload(); return []; }
-      // AQ. keys use Authorization header; AIza keys use query param
-      const isAQ = key.startsWith('AQ.');
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent${isAQ ? '' : `?key=${key}`}`;
-      const headers = { 'Content-Type': 'application/json' };
-      if (isAQ) headers['Authorization'] = `Bearer ${key}`;
-      const res = await fetch(url, {
-        method:'POST', headers,
-        body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.9,maxOutputTokens:1400} })
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${key}`,
+          'HTTP-Referer': 'https://ibrahemtaqi.github.io/spark',
+          'X-Title': 'Spark Creative Companion',
+        },
+        body: JSON.stringify({
+          model: 'deepseek/deepseek-chat-v3-0324:free',
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.9,
+          max_tokens: 1400,
+        })
       });
-      if(res.status===401||res.status===403){ localStorage.removeItem('spark_gemini_key'); window.location.reload(); return []; }
+      if (res.status===401||res.status===403) { localStorage.removeItem('spark_gemini_key'); window.location.reload(); return []; }
       const json = await res.json();
-      const text = json.candidates?.[0]?.content?.parts?.[0]?.text||'[]';
+      const text = json.choices?.[0]?.message?.content || '[]';
       const clean = text.replace(/```json|```/g,'').trim();
-      const s=clean.indexOf('['), e=clean.lastIndexOf(']');
-      return JSON.parse(clean.slice(s,e+1));
+      const s = clean.indexOf('['), e = clean.lastIndexOf(']');
+      return JSON.parse(clean.slice(s, e+1));
     }
 
     /* ── TOKENS ── */
