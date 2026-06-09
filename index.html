@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Spark — Your Daily Creative Companion</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&display=swap"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%; overflow: hidden;
+      background: #080610;
+      font-family: 'Bricolage Grotesque', sans-serif;
+      color: #f5f0ff;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NOISE ── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 50; pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px;
+    }
+
+    /* ── SCENE ── */
+    .scene {
+      position: fixed; inset: 0; z-index: 0;
+      background: #080610;
+    }
+
+    /* Deep radial atmosphere */
+    .scene-atmo {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 100% 60% at 50% 100%, #1d0d42 0%, #0d0820 45%, #080610 75%),
+        radial-gradient(ellipse 60% 40% at 50% 80%, #2a1060 0%, transparent 70%);
+    }
+
+    /* Stars */
+    .scene-stars {
+      position: absolute; inset: 0;
+      background-image:
+        radial-gradient(1px 1px at 12% 8%,  rgba(196,181,253,.7) 0%, transparent 100%),
+        radial-gradient(1px 1px at 88% 6%,  rgba(196,181,253,.5) 0%, transparent 100%),
+        radial-gradient(1.5px 1.5px at 30% 4%, rgba(245,240,255,.6) 0%, transparent 100%),
+        radial-gradient(1px 1px at 67% 11%, rgba(196,181,253,.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 52% 2%,  rgba(245,240,255,.7) 0%, transparent 100%),
+        radial-gradient(1px 1px at 78% 18%, rgba(167,139,250,.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 22% 20%, rgba(196,181,253,.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 5%  33%, rgba(167,139,250,.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 95% 28%, rgba(196,181,253,.3) 0%, transparent 100%),
+        radial-gradient(1px 1px at 43% 7%,  rgba(245,240,255,.5) 0%, transparent 100%),
+        radial-gradient(1px 1px at 60% 3%,  rgba(196,181,253,.4) 0%, transparent 100%),
+        radial-gradient(1px 1px at 18% 14%, rgba(167,139,250,.3) 0%, transparent 100%);
+    }
+
+    /* Portal beam */
+    .portal {
+      position: absolute;
+      left: 50%; top: 0; bottom: 0;
+      transform: translateX(-50%);
+      width: 2px;
+      background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(124,58,237,.3) 15%,
+        #7c3aed 30%,
+        #a855f7 50%,
+        #c084fc 60%,
+        #fb923c 76%,
+        rgba(251,146,60,.2) 88%,
+        transparent 100%
+      );
+      box-shadow:
+        0 0 30px 15px rgba(124,58,237,.35),
+        0 0 90px 45px rgba(124,58,237,.18),
+        0 0 200px 80px rgba(124,58,237,.08);
+      z-index: 1;
+    }
+
+    /* Horizon glow line */
+    .horizon {
+      position: absolute;
+      bottom: 28%; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%, rgba(124,58,237,.5) 25%,
+        rgba(168,85,247,.9) 50%,
+        rgba(124,58,237,.5) 75%, transparent 100%
+      );
+      box-shadow: 0 0 60px 30px rgba(124,58,237,.12);
+      z-index: 1;
+    }
+
+    /* Left cliff */
+    .cliff-l {
+      position: absolute; bottom: 0; left: 0;
+      width: 44%; height: 68%;
+      background: linear-gradient(165deg, transparent 18%, #090714 48%, #060410 100%);
+      clip-path: polygon(0 100%, 0 42%, 12% 22%, 22% 38%, 34% 8%, 44% 28%, 56% 2%, 66% 22%, 78% 12%, 100% 48%, 100% 100%);
+      z-index: 2;
+      filter: drop-shadow(0 -2px 20px rgba(124,58,237,.15));
+    }
+
+    /* Right cliff */
+    .cliff-r {
+      position: absolute; bottom: 0; right: 0;
+      width: 44%; height: 68%;
+      background: linear-gradient(195deg, transparent 18%, #090714 48%, #060410 100%);
+      clip-path: polygon(100% 100%, 100% 42%, 88% 22%, 78% 38%, 66% 8%, 56% 28%, 44% 2%, 34% 22%, 22% 12%, 0 48%, 0 100%);
+      z-index: 2;
+      filter: drop-shadow(0 -2px 20px rgba(124,58,237,.15));
+    }
+
+    /* Ground mist */
+    .mist {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 32%;
+      background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(20,10,50,.15) 40%,
+        rgba(8,6,16,.6) 100%
+      );
+      z-index: 3;
+    }
+
+    /* Particles */
+    .ptcl {
+      position: absolute; border-radius: 50%;
+      background: #a78bfa;
+      animation: rise linear infinite;
+      opacity: 0;
+    }
+    @keyframes rise {
+      0%   { transform: translateY(60vh) translateX(0);   opacity: 0; }
+      8%   { opacity: .9; }
+      88%  { opacity: .3; }
+      100% { transform: translateY(-15vh) translateX(var(--d)); opacity: 0; }
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 24px 48px;
+    }
+    .nav-logo {
+      font-family: 'Instrument Serif', serif; font-style: italic;
+      font-size: 22px; color: #f5f0ff; text-decoration: none;
+      letter-spacing: -.5px;
+    }
+    .nav-how {
+      font-size: 11px; font-weight: 600; letter-spacing: 1.5px;
+      text-transform: uppercase; color: #6b6585;
+      text-decoration: none; transition: color .2s;
+    }
+    .nav-how:hover { color: #f5f0ff; }
+
+    /* ── HERO CONTENT ── */
+    .hero {
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 0 24px;
+      pointer-events: none;
+    }
+    .hero > * { pointer-events: auto; }
+
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(124,58,237,.12);
+      border: 1px solid rgba(124,58,237,.3);
+      color: #c4b5fd; font-size: 10px; font-weight: 700;
+      letter-spacing: 2px; text-transform: uppercase;
+      padding: 6px 16px; border-radius: 99px;
+      margin-bottom: 28px;
+      opacity: 0; animation: fadeUp .8s .2s forwards;
+    }
+
+    h1 {
+      font-family: 'Instrument Serif', serif; font-style: italic;
+      font-size: clamp(54px, 10vw, 118px);
+      line-height: .93; letter-spacing: -3px;
+      color: #f5f0ff;
+      text-shadow: 0 0 100px rgba(124,58,237,.35);
+      margin-bottom: 24px;
+      opacity: 0; animation: fadeUp .9s .35s forwards;
+    }
+    h1 em {
+      font-style: normal;
+      background: linear-gradient(125deg, #a78bfa 0%, #c084fc 40%, #fb923c 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sub {
+      font-size: clamp(14px, 1.8vw, 17px);
+      color: #9d97b8; max-width: 420px;
+      line-height: 1.75; margin-bottom: 40px;
+      opacity: 0; animation: fadeUp .9s .5s forwards;
+    }
+
+    .actions {
+      display: flex; gap: 14px; flex-wrap: wrap;
+      justify-content: center;
+      opacity: 0; animation: fadeUp .9s .65s forwards;
+    }
+
+    .btn-open {
+      background: #7c3aed; border: none; color: #f5f0ff;
+      padding: 15px 34px; border-radius: 12px;
+      font-size: 14px; font-weight: 700;
+      font-family: 'Bricolage Grotesque', sans-serif;
+      cursor: pointer; letter-spacing: .3px;
+      text-decoration: none; display: inline-block;
+      box-shadow: 0 0 50px rgba(124,58,237,.45);
+      transition: all .2s;
+    }
+    .btn-open:hover {
+      background: #a78bfa;
+      box-shadow: 0 0 70px rgba(167,139,250,.55);
+      transform: translateY(-2px);
+    }
+
+    .btn-how {
+      background: transparent;
+      border: 1px solid rgba(245,240,255,.15);
+      color: #9d97b8; padding: 15px 34px;
+      border-radius: 12px; font-size: 14px; font-weight: 600;
+      font-family: 'Bricolage Grotesque', sans-serif;
+      cursor: pointer; text-decoration: none; display: inline-block;
+      transition: all .2s;
+    }
+    .btn-how:hover {
+      border-color: rgba(245,240,255,.4);
+      color: #f5f0ff;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 600px) {
+      nav { padding: 20px 20px; }
+      .actions { flex-direction: column; align-items: center; width: 100%; }
+      .btn-open, .btn-how { width: 100%; max-width: 300px; text-align: center; }
+      h1 { letter-spacing: -2px; }
+      .cliff-l, .cliff-r { height: 50%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Scene -->
+  <div class="scene">
+    <div class="scene-atmo"></div>
+    <div class="scene-stars"></div>
+    <div class="portal"></div>
+    <div class="horizon"></div>
+    <div class="cliff-l"></div>
+    <div class="cliff-r"></div>
+    <div class="mist"></div>
+    <div id="particles"></div>
+  </div>
+
+  <!-- Nav -->
+  <nav>
+    <a href="index.html" class="nav-logo">spark</a>
+    <a href="how-it-works.html" class="nav-how">how it works</a>
+  </nav>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="eyebrow">✦ your daily creative companion</div>
+    <h1>feed your<br/><em>creative mind</em></h1>
+    <p class="sub">Ideas to learn, steal, and try — matched to your mood, your goals, and the time of day.</p>
+    <div class="actions">
+      <a href="spark-pwa/index.html" class="btn-open">open spark free →</a>
+      <a href="how-it-works.html" class="btn-how">how it works</a>
+    </div>
+  </div>
+
+  <script>
+    // Particles
+    const wrap = document.getElementById('particles');
+    wrap.style.cssText = 'position:absolute;inset:0;z-index:1;pointer-events:none;';
+    for (let i = 0; i < 28; i++) {
+      const p = document.createElement('div');
+      p.className = 'ptcl';
+      const sz    = Math.random() > .65 ? 3 : 2;
+      const left  = 44 + (Math.random() - .5) * 16;
+      const dur   = 5 + Math.random() * 9;
+      const delay = Math.random() * 12;
+      const drift = (Math.random() - .5) * 100;
+      p.style.cssText = `
+        left:${left}%; bottom:28%;
+        width:${sz}px; height:${sz}px;
+        animation-duration:${dur}s;
+        animation-delay:${delay}s;
+        --d:${drift}px;
+        box-shadow:0 0 ${sz*3}px rgba(167,139,250,.9);
+      `;
+      wrap.appendChild(p);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Spark"/>
+  <meta name="theme-color" content="#080610"/>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+  <title>Spark</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,700;12..96,800&family=Instrument+Serif:ital@0;1&display=swap"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #080610; color: #f5f0ff; }
+    body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased; }
+    #root { min-height: 100vh; min-height: -webkit-fill-available; }
+    input, button { font-family: inherit; }
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: #080610; }
+    ::-webkit-scrollbar-thumb { background: #3b2f6e; border-radius: 99px; }
+    body::after {
+      content:''; position:fixed; inset:0; z-index:9999; pointer-events:none; opacity:.025;
+      background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size:180px;
+    }
+
+    /* ── AUTH / SETUP OVERLAY ── */
+    #overlay {
+      position:fixed; inset:0; z-index:9998;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      padding:32px 24px; font-family:'Bricolage Grotesque',sans-serif;
+      background:#080610;
+    }
+    #overlay.gone { display:none; }
+    #overlay-bg {
+      position:absolute; inset:0; pointer-events:none;
+      background:radial-gradient(ellipse 80% 60% at 50% 100%, #1d0d42 0%, #0d0820 50%, #080610 80%);
+    }
+    .ov-logo { font-family:'Instrument Serif',serif; font-style:italic; font-size:38px; color:#f5f0ff; margin-bottom:6px; position:relative; z-index:1; text-shadow:0 0 60px rgba(124,58,237,.4); }
+    .ov-sub  { color:#6b6585; font-size:12px; margin-bottom:28px; letter-spacing:.5px; position:relative; z-index:1; }
+    .ov-card {
+      background:#0f0d1a; border:1px solid #1e1a30; border-radius:20px;
+      padding:28px 24px; max-width:400px; width:100%; position:relative; z-index:1;
+    }
+    .ov-card::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,#7c3aed,transparent); border-radius:20px 20px 0 0; }
+    .ov-tabs { display:flex; gap:0; margin-bottom:24px; background:#080610; border-radius:10px; padding:3px; }
+    .ov-tab  { flex:1; padding:9px 0; background:transparent; border:none; color:#6b6585; font-size:12px; font-weight:700; cursor:pointer; border-radius:8px; transition:all .15s; letter-spacing:.5px; }
+    .ov-tab.active { background:#1e1a30; color:#f5f0ff; }
+    .ov-lbl  { font-size:9px; font-weight:800; letter-spacing:2px; text-transform:uppercase; color:#6b6585; margin-bottom:7px; display:block; }
+    .ov-inp  { width:100%; background:#080610; border:1px solid #1e1a30; border-radius:10px; padding:12px 14px; color:#f5f0ff; font-size:13px; outline:none; letter-spacing:.3px; transition:border-color .2s; margin-bottom:12px; }
+    .ov-inp:focus { border-color:#7c3aed; }
+    .ov-btn  { width:100%; padding:14px 0; background:transparent; border:1.5px solid #a78bfa; border-radius:12px; color:#a78bfa; font-size:14px; font-weight:700; cursor:pointer; transition:all .2s; margin-top:4px; }
+    .ov-btn:hover { background:#a78bfa; color:#080610; }
+    .ov-btn:disabled { opacity:.4; cursor:not-allowed; }
+    .ov-err  { color:#f87171; font-size:11px; margin-top:8px; text-align:center; min-height:16px; }
+    .ov-ok   { color:#86efac; font-size:11px; margin-top:8px; text-align:center; min-height:16px; }
+    .ov-divider { display:flex; align-items:center; gap:10px; margin:16px 0; }
+    .ov-divider::before, .ov-divider::after { content:''; flex:1; height:1px; background:#1e1a30; }
+    .ov-divider span { font-size:10px; color:#6b6585; }
+    .ov-note { font-size:11px; color:#6b6585; text-align:center; margin-top:16px; line-height:1.6; position:relative; z-index:1; }
+
+    /* Gemini key screen */
+    .ov-step { display:flex; gap:12px; margin-bottom:16px; align-items:flex-start; }
+    .ov-num  { background:#3b2f6e; color:#a78bfa; width:22px; height:22px; border-radius:99px; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:800; flex-shrink:0; margin-top:1px; }
+    .ov-stxt { font-size:12px; color:#9d97b8; line-height:1.6; }
+    .ov-stxt a { color:#a78bfa; text-decoration:none; }
+    .ov-stxt strong { color:#f5f0ff; }
+
+    /* Install banner */
+    #banner { display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:9997; background:#1a1630; border:1px solid #3b2f6e; border-radius:16px; padding:14px 18px; gap:14px; box-shadow:0 8px 32px rgba(124,58,237,.3); max-width:340px; width:calc(100% - 40px); font-family:'Bricolage Grotesque',sans-serif; align-items:center; }
+    #banner.show { display:flex; }
+    #banner strong { display:block; color:#f5f0ff; font-size:12px; margin-bottom:2px; }
+    #banner span { color:#6b6585; font-size:10px; }
+    #ibtn { background:#7c3aed; border:none; color:white; padding:8px 14px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap; }
+    #dbtn { background:transparent; border:none; color:#6b6585; font-size:18px; cursor:pointer; }
+  </style>
+</head>
+<body>
+
+  <!-- ── OVERLAY (Auth + Gemini Key) ── -->
+  <div id="overlay">
+    <div id="overlay-bg"></div>
+    <div class="ov-logo">spark</div>
+    <div class="ov-sub" id="ov-sub">sign in to save your ideas forever</div>
+    <div class="ov-card" id="ov-card"><!-- filled by JS --></div>
+    <div class="ov-note" id="ov-note"></div>
+  </div>
+
+  <div id="root"></div>
+
+  <div id="banner">
+    <div><strong>✦ Add Spark to home screen</strong><span>Works like a real app</span></div>
+    <button id="ibtn">Install</button>
+    <button id="dbtn">×</button>
+  </div>
+
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- React -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script>
+    /* ── SUPABASE INIT ── */
+    const SURL = 'https://dhoaixunvkbvpabxsfqd.supabase.co';
+    const SKEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRob2FpeHVudmtidnBhYnhzZnFkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5ODYyMDEsImV4cCI6MjA5NjU2MjIwMX0.xB2sQKng2sSJ1FKVAxDz9HkXzfwE0QFfoJroC6cnj6c';
+    const sb = supabase.createClient(SURL, SKEY);
+
+    const GKEY_LS = 'spark_gemini_key';
+    const overlay = document.getElementById('overlay');
+    const ovCard  = document.getElementById('ov-card');
+    const ovSub   = document.getElementById('ov-sub');
+    const ovNote  = document.getElementById('ov-note');
+
+    let currentUser = null;
+
+    /* ── OVERLAY SCREENS ── */
+    function showAuthScreen(mode = 'signin') {
+      ovSub.textContent = mode === 'signin' ? 'sign in to save your ideas forever' : 'create your free account';
+      ovNote.textContent = '🔒 Your data is stored securely in the cloud.';
+      ovCard.innerHTML = `
+        <div class="ov-tabs">
+          <button class="ov-tab ${mode==='signin'?'active':''}" onclick="showAuthScreen('signin')">sign in</button>
+          <button class="ov-tab ${mode==='signup'?'active':''}" onclick="showAuthScreen('signup')">sign up</button>
+        </div>
+        ${mode==='signup'?`<label class="ov-lbl">your name</label><input class="ov-inp" id="auth-name" type="text" placeholder="ibrahim" autocomplete="name"/>` : ''}
+        <label class="ov-lbl">email</label>
+        <input class="ov-inp" id="auth-email" type="email" placeholder="you@email.com" autocomplete="email"/>
+        <label class="ov-lbl">password</label>
+        <input class="ov-inp" id="auth-pass" type="password" placeholder="••••••••" autocomplete="${mode==='signin'?'current-password':'new-password'}"/>
+        <button class="ov-btn" id="auth-btn">${mode==='signin'?'sign in →':'create account →'}</button>
+        <div class="ov-err" id="auth-err"></div>
+      `;
+      document.getElementById('auth-btn').onclick = () => handleAuth(mode);
+      document.getElementById('auth-pass').addEventListener('keydown', e => e.key==='Enter' && handleAuth(mode));
+    }
+
+    async function handleAuth(mode) {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass  = document.getElementById('auth-pass').value;
+      const name  = mode==='signup' ? (document.getElementById('auth-name')?.value.trim()||'ibrahim') : '';
+      const err   = document.getElementById('auth-err');
+      const btn   = document.getElementById('auth-btn');
+
+      if (!email || !pass) { err.textContent = 'fill in both fields'; return; }
+      if (pass.length < 6) { err.textContent = 'password needs at least 6 characters'; return; }
+
+      btn.textContent = '…'; btn.disabled = true; err.textContent = '';
+
+      try {
+        let result;
+        if (mode === 'signin') {
+          result = await sb.auth.signInWithPassword({ email, password: pass });
+        } else {
+          result = await sb.auth.signUp({ email, password: pass, options: { data: { name } } });
+        }
+        if (result.error) throw result.error;
+        if (mode === 'signup' && !result.data.session) {
+          // Email confirmation needed
+          ovCard.innerHTML = `<div style="text-align:center;padding:20px 0;">
+            <div style="font-size:32px;margin-bottom:12px;">📬</div>
+            <div style="font-family:'Instrument Serif',serif;font-style:italic;font-size:20px;color:#f5f0ff;margin-bottom:10px;">check your email</div>
+            <div style="font-size:13px;color:#9d97b8;line-height:1.7;">We sent a confirmation link to <strong style="color:#f5f0ff;">${email}</strong>.<br/>Click it then come back and sign in.</div>
+            <button class="ov-btn" style="margin-top:20px;" onclick="showAuthScreen('signin')">back to sign in</button>
+          </div>`;
+          return;
+        }
+        currentUser = result.data.user;
+        showGeminiScreen();
+      } catch(e) {
+        err.textContent = e.message || 'something went wrong — try again';
+        btn.textContent = mode==='signin'?'sign in →':'create account →';
+        btn.disabled = false;
+      }
+    }
+
+    function showGeminiScreen() {
+      ovSub.textContent = 'one last thing — your free AI key';
+      ovNote.textContent = '🔒 Key stored on this device only. Never sent to our servers.';
+      ovCard.innerHTML = `
+        <div class="ov-step"><div class="ov-num">1</div><div class="ov-stxt">Go to <a href="https://aistudio.google.com" target="_blank"><strong>aistudio.google.com</strong></a> and sign in with Google</div></div>
+        <div class="ov-step"><div class="ov-num">2</div><div class="ov-stxt">Click <strong>"Get API key"</strong> → <strong>"Create API key"</strong> → copy it</div></div>
+        <div class="ov-step"><div class="ov-num">3</div><div class="ov-stxt">Paste it below. Free tier: 1,500 ideas/day.</div></div>
+        <label class="ov-lbl">your gemini api key</label>
+        <input class="ov-inp" id="gk-inp" type="password" placeholder="paste your key here" autocomplete="off"/>
+        <button class="ov-btn" id="gk-btn">save and open spark →</button>
+        <div class="ov-err" id="gk-err"></div>
+      `;
+      document.getElementById('gk-btn').onclick = handleGeminiKey;
+      document.getElementById('gk-inp').addEventListener('keydown', e => e.key==='Enter' && handleGeminiKey());
+    }
+
+    async function handleGeminiKey() {
+      const k   = document.getElementById('gk-inp').value.trim();
+      const err = document.getElementById('gk-err');
+      const btn = document.getElementById('gk-btn');
+      if (!k || k.length < 20) { err.textContent = "paste the full key"; return; }
+      err.textContent = ''; btn.textContent = 'testing key…'; btn.disabled = true;
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${k}`,
+          {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'hi'}]}]})});
+        if (!r.ok) throw new Error();
+        localStorage.setItem(GKEY_LS, k);
+        overlay.classList.add('gone');
+        window.__sparkUserReady && window.__sparkUserReady(currentUser);
+      } catch {
+        err.textContent = "key didn't work — double check and try again";
+        btn.textContent = 'save and open spark →'; btn.disabled = false;
+      }
+    }
+
+    /* ── BOOT ── */
+    async function boot() {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session?.user) {
+        currentUser = session.user;
+        const hasKey = localStorage.getItem(GKEY_LS);
+        if (hasKey) {
+          overlay.classList.add('gone');
+          window.__sparkUserReady && window.__sparkUserReady(currentUser);
+        } else {
+          showGeminiScreen();
+        }
+      } else {
+        showAuthScreen('signin');
+      }
+    }
+    boot();
+
+    /* ── INSTALL PROMPT ── */
+    let dp = null;
+    const banner = document.getElementById('banner');
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); dp = e; setTimeout(()=>{ if(!localStorage.getItem('spark_idismissed')) banner.classList.add('show'); },4000); });
+    document.getElementById('ibtn').onclick = async()=>{ if(!dp)return; dp.prompt(); await dp.userChoice; dp=null; banner.classList.remove('show'); };
+    document.getElementById('dbtn').onclick = ()=>{ banner.classList.remove('show'); localStorage.setItem('spark_idismissed','1'); };
+    if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));
+    const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+    if(isIOS&&!window.navigator.standalone&&!localStorage.getItem('spark_ios')){
+      setTimeout(()=>{
+        localStorage.setItem('spark_ios','1');
+        const m=document.createElement('div');
+        m.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1630;border:1px solid #3b2f6e;border-radius:16px;padding:14px 18px;z-index:9996;max-width:320px;width:calc(100% - 40px);font-family:"Bricolage Grotesque",sans-serif;font-size:12px;color:#c4b5fd;text-align:center;line-height:1.6;box-shadow:0 8px 32px rgba(124,58,237,.3)';
+        m.innerHTML='<strong style="color:#f5f0ff;display:block;margin-bottom:4px">✦ Add Spark to home screen</strong>Tap <strong>Share</strong> → <strong>"Add to Home Screen"</strong><br><button onclick="this.parentElement.remove()" style="margin-top:10px;background:transparent;border:1px solid #3b2f6e;color:#6b6585;padding:5px 14px;border-radius:8px;cursor:pointer;font-size:11px">got it</button>';
+        document.body.appendChild(m); setTimeout(()=>m.remove(),12000);
+      },4000);
+    }
+  </script>
+
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useCallback, useRef } = React;
+
+    /* ── SUPABASE DB HELPERS ── */
+    const DB = {
+      async getLiked(userId) {
+        const { data } = await sb.from('saved_ideas').select('*').eq('user_id', userId).order('saved_at', { ascending: false });
+        return data || [];
+      },
+      async getSkipped(userId) {
+        const { data } = await sb.from('skipped_ideas').select('*').eq('user_id', userId).order('skipped_at', { ascending: false });
+        return data || [];
+      },
+      async saveLiked(userId, idea) {
+        await sb.from('saved_ideas').insert({ user_id: userId, ...idea });
+      },
+      async saveSkipped(userId, item) {
+        await sb.from('skipped_ideas').insert({ user_id: userId, ...item });
+      },
+      async logMood(userId, mood, pillar) {
+        await sb.from('mood_log').insert({ user_id: userId, mood, pillar });
+      },
+      async deleteLiked(userId, id) {
+        await sb.from('saved_ideas').delete().eq('id', id).eq('user_id', userId);
+      }
+    };
+
+    /* ── GEMINI ── */
+    async function callGemini(prompt) {
+      const key = localStorage.getItem('spark_gemini_key');
+      if (!key) { window.location.reload(); return []; }
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.9,maxOutputTokens:1400} })
+      });
+      if(res.status===401||res.status===400){ localStorage.removeItem('spark_gemini_key'); window.location.reload(); return []; }
+      const json = await res.json();
+      const text = json.candidates?.[0]?.content?.parts?.[0]?.text||'[]';
+      const clean = text.replace(/```json|```/g,'').trim();
+      const s=clean.indexOf('['), e=clean.lastIndexOf(']');
+      return JSON.parse(clean.slice(s,e+1));
+    }
+
+    /* ── TOKENS ── */
+    const C = {
+      bg:'#080610', bgCard:'#0f0d1a', bgFloat:'#1a1630',
+      violet:'#7c3aed', vsoft:'#a78bfa', vdim:'#3b2f6e',
+      lavender:'#c4b5fd', peach:'#fb923c', green:'#86efac',
+      cyan:'#67e8f9', rose:'#f87171', yellow:'#fbbf24',
+      white:'#f5f0ff', muted:'#6b6585', mid:'#9d97b8',
+      border:'#1e1a30',
+    };
+
+    function getTOD() {
+      const h=new Date().getHours();
+      if(h>=5&&h<12)  return {id:'morning',  label:'morning',  emoji:'🌅',color:'#fbbf24',greet:'good morning'};
+      if(h>=12&&h<17) return {id:'afternoon',label:'afternoon',emoji:'☀️', color:'#fb923c',greet:'good afternoon'};
+      if(h>=17&&h<21) return {id:'evening',  label:'evening',  emoji:'🌇',color:'#a78bfa',greet:'good evening'};
+      return                 {id:'night',    label:'night',    emoji:'🌙',color:'#67e8f9',greet:'hey night owl'};
+    }
+
+    const PILLARS=[
+      {id:'all',        label:'everything',  emoji:'✦', color:C.vsoft},
+      {id:'craft',      label:'craft',       emoji:'🎬',color:C.rose},
+      {id:'marketing',  label:'marketing',   emoji:'📣',color:C.peach},
+      {id:'productivity',label:'productivity',emoji:'⚡',color:C.yellow},
+      {id:'daily',      label:'daily spark', emoji:'🎲',color:C.green},
+    ];
+    const MOODS=[
+      {id:'restless',label:'restless',  sub:'need to make something rn',   emoji:'⚡',color:C.peach},
+      {id:'curious', label:'curious',   sub:'show me something new',       emoji:'🔭',color:C.vsoft},
+      {id:'slow',    label:'slow burn', sub:'quiet, no rush',              emoji:'🌿',color:C.green},
+      {id:'bold',    label:'bold',      sub:'big swings only',             emoji:'🔥',color:C.rose},
+      {id:'lost',    label:'lost',      sub:'just give me a spark',        emoji:'🌫️',color:C.lavender},
+      {id:'studying',label:'study mode',sub:'i want to learn craft today', emoji:'📽️',color:C.cyan},
+    ];
+    const TM={
+      'Try This':        {bg:'#fb923c18',color:'#fb923c'},
+      'Study This':      {bg:'#86efac18',color:'#86efac'},
+      'Steal This':      {bg:'#fbbf2418',color:'#fbbf24'},
+      'Think About This':{bg:'#a78bfa18',color:'#a78bfa'},
+      'Do This Now':     {bg:'#67e8f918',color:'#67e8f9'},
+    };
+
+    /* ── PROMPTS ── */
+    function moodPrompt(mood,pillar,liked,skipped){
+      const m=MOODS.find(x=>x.id===mood), p=PILLARS.find(x=>x.id===pillar), tod=getTOD();
+      const likedStr=liked.slice(-12).map(i=>`"${i.title}" (${i.domain})`).join(', ');
+      const skippedStr=skipped.slice(-6).map(i=>i.title).join(', ');
+      const focus=pillar==='all'?'Mix freely: Filmmaking, Editing, Storytelling, Copywriting, Design, Photography, Branding, Marketing, Productivity, Daily-Fun.'
+        :pillar==='craft'?'Focus: Filmmaking, Editing, Storytelling, Copywriting, Cinematography, Design, Photography, Sound, Writing.'
+        :pillar==='marketing'?'Focus: Personal Branding, Content Strategy, Audience Growth, Social Media, Copywriting, Positioning.'
+        :pillar==='productivity'?'Focus: Focus Systems, Deep Work, Creative Routines, Mental Clarity, Time Blocking, Energy Management.'
+        :`Fun, low-pressure activities for ${tod.label} time.`;
+      return `You are the creative mentor inside Spark for Ibrahim — 25, Faisalabad, Pakistan. Building personal brand around growth and authentic storytelling. Learning filmmaking, editing, storytelling, copywriting, design, marketing, productivity. Gen Z, draws from Pakistani and international creative culture.
+
+Mood: "${m?.label}" — "${m?.sub}"
+Time: ${tod.label}
+Area: ${p?.label}
+${focus}
+
+Liked before: ${likedStr||'none yet'}
+Skipped: ${skippedStr||'none yet'}
+
+5 creative inspiration cards. Mentor whisper — specific, surprising.
+- title: max 9 words, lowercase, no question marks
+- domain: Filmmaking|Editing|Storytelling|Copywriting|Cinematography|Design|Photography|Sound|Writing|Branding|Marketing|Productivity|Daily-Fun
+- type: "Try This"|"Study This"|"Steal This"|"Think About This"|"Do This Now"
+- body: 2-3 sentences. Specific, real technique, Pakistan reference if relevant.
+- reference: real person/work
+- why: one sentence on mood+time fit
+
+JSON array only. No markdown.
+[{"title":"","domain":"","type":"","body":"","reference":"","why":""}]`;
+    }
+
+    function searchPrompt(q,liked){
+      const tod=getTOD();
+      const likedStr=liked.slice(-10).map(i=>`"${i.title}" (${i.domain})`).join(', ');
+      return `Creative mentor inside Spark for Ibrahim — 25, Faisalabad. Learning filmmaking, storytelling, copywriting, design, marketing, productivity.
+
+Query: "${q}"
+Time: ${tod.label}
+Liked: ${likedStr||'none yet'}
+
+4 cards responding to this query. Specific, practical, mentorly.
+- title, domain, type, body (2-3 sentences), reference (real), why
+
+JSON array only. No markdown.
+[{"title":"","domain":"","type":"","body":"","reference":"","why":""}]`;
+    }
+
+    /* ── DECORATIVE ── */
+    function Glow({x='50%',y='50%',color='rgba(124,58,237,0.12)',size=300}){
+      return <div style={{position:'fixed',left:x,top:y,width:size,height:size,borderRadius:'50%',background:color,filter:'blur(90px)',transform:'translate(-50%,-50%)',pointerEvents:'none',zIndex:0}}/>;
+    }
+    function BgWords(){
+      const words=['story','craft','edit','light','voice','frame','grow','make','focus','brand','cut','feel'];
+      return(
+        <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden',userSelect:'none'}}>
+          {words.map((w,i)=><span key={i} style={{position:'absolute',left:`${(i*41+5)%88}%`,top:`${(i*27+6)%86}%`,fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:800,fontSize:`${22+(i%3)*18}px`,color:'#3b2f6e',opacity:.14,transform:`rotate(${(i%5-2)*9}deg)`,letterSpacing:2}}>{w}</span>)}
+        </div>
+      );
+    }
+    function Pill({label,bg,color}){
+      return <span style={{display:'inline-flex',alignItems:'center',background:bg,color,fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',padding:'3px 9px',borderRadius:99}}>{label}</span>;
+    }
+
+    /* ── TOP NAV ── */
+    function Nav({screen,onBack,onHome,onBoard,onSearch,likedCount,userEmail,onSignOut}){
+      const [showMenu,setShowMenu]=useState(false);
+      return(
+        <div style={{position:'sticky',top:0,zIndex:200,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'13px 18px',background:'rgba(8,6,16,0.92)',backdropFilter:'blur(16px)',borderBottom:`1px solid ${C.border}`}}>
+          <button style={{background:'transparent',border:'none',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Bricolage Grotesque',sans-serif",color:C.muted,opacity:screen!=='home'?1:.25,pointerEvents:screen!=='home'?'auto':'none',letterSpacing:.5}} onClick={onBack}>← back</button>
+          <button style={{background:'transparent',border:'none',fontFamily:"'Instrument Serif',serif",fontStyle:'italic',fontSize:17,color:C.white,cursor:'pointer',letterSpacing:-.5}} onClick={onHome}>spark</button>
+          <div style={{display:'flex',gap:5,alignItems:'center',position:'relative'}}>
+            <button style={{background:'transparent',border:'none',fontSize:15,cursor:'pointer',padding:'3px 5px',color:C.muted}} onClick={onSearch}>🔍</button>
+            <button style={{background:'transparent',border:'none',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Bricolage Grotesque',sans-serif",color:C.muted,opacity:screen==='board'?.3:1,pointerEvents:screen==='board'?'none':'auto',letterSpacing:.5}} onClick={onBoard}>
+              board{likedCount>0?` (${likedCount})`:''}
+            </button>
+            <button onClick={()=>setShowMenu(v=>!v)} style={{background:'transparent',border:'none',fontSize:15,cursor:'pointer',padding:'3px 5px',color:C.muted}}>👤</button>
+            {showMenu&&(
+              <div style={{position:'absolute',top:'100%',right:0,marginTop:8,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:'12px 16px',minWidth:180,zIndex:300,boxShadow:'0 8px 32px rgba(0,0,0,.5)'}}>
+                <div style={{fontSize:11,color:C.muted,marginBottom:10,letterSpacing:.3}}>{userEmail}</div>
+                <button onClick={()=>{setShowMenu(false);if(confirm('Change Gemini API key?')){localStorage.removeItem('spark_gemini_key');window.location.reload();}}}
+                  style={{display:'block',width:'100%',background:'transparent',border:'none',color:C.mid,fontSize:12,cursor:'pointer',textAlign:'left',padding:'6px 0',fontFamily:"'Bricolage Grotesque',sans-serif"}}>change api key</button>
+                <button onClick={()=>{setShowMenu(false);onSignOut();}}
+                  style={{display:'block',width:'100%',background:'transparent',border:'none',color:C.rose,fontSize:12,cursor:'pointer',textAlign:'left',padding:'6px 0',fontFamily:"'Bricolage Grotesque',sans-serif"}}>sign out</button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    /* ── HOME ── */
+    function Home({onGo,onSearch,liked}){
+      const [pillar,setPillar]=useState('all');
+      const [mood,setMood]=useState(null);
+      const [hm,setHm]=useState(null);
+      const [hp,setHp]=useState(null);
+      const tod=getTOD();
+      const sel=MOODS.find(m=>m.id===mood);
+      return(
+        <div style={{display:'flex',flexDirection:'column',padding:'24px 18px 32px',maxWidth:520,margin:'0 auto',width:'100%',boxSizing:'border-box',position:'relative'}}>
+          <BgWords/>
+          <Glow x="70%" y="15%" color="rgba(124,58,237,0.09)" size={440}/>
+          <Glow x="20%" y="80%" color={`${tod.color}14`} size={300}/>
+          <div style={{position:'relative',zIndex:1}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+              <span style={{fontSize:18}}>{tod.emoji}</span>
+              <span style={{fontFamily:"'Instrument Serif',serif",fontStyle:'italic',fontSize:16,color:tod.color}}>{tod.greet}, ibrahim</span>
+            </div>
+            {liked.length>0&&<div style={{display:'inline-flex',background:C.vdim,color:C.lavender,fontSize:10,padding:'3px 11px',borderRadius:99,marginBottom:16,letterSpacing:.5}}>✦ {liked.length} ideas saved</div>}
+            <div onClick={onSearch} style={{display:'flex',alignItems:'center',gap:9,background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:12,padding:'11px 14px',cursor:'pointer',marginBottom:22}}>
+              <span style={{fontSize:13}}>🔍</span>
+              <span style={{color:C.muted,fontSize:12}}>what's on your mind right now?</span>
+            </div>
+            <div style={{fontSize:9,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:C.muted,marginBottom:9}}>what area?</div>
+            <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:20}}>
+              {PILLARS.map(p=>(
+                <button key={p.id} onClick={()=>setPillar(p.id)} onMouseEnter={()=>setHp(p.id)} onMouseLeave={()=>setHp(null)}
+                  style={{display:'flex',alignItems:'center',gap:6,padding:'7px 13px',background:pillar===p.id?`${p.color}18`:hp===p.id?`${p.color}08`:C.bgCard,border:'1px solid',borderColor:pillar===p.id?p.color:hp===p.id?`${p.color}55`:C.border,borderRadius:99,cursor:'pointer',transition:'all .14s'}}>
+                  <span style={{fontSize:14}}>{p.emoji}</span>
+                  <span style={{fontSize:12,fontWeight:600,color:pillar===p.id?p.color:C.mid}}>{p.label}</span>
+                </button>
+              ))}
+            </div>
+            <div style={{fontSize:9,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:C.muted,marginBottom:9}}>what's the vibe?</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:20}}>
+              {MOODS.map(m=>(
+                <button key={m.id} onClick={()=>setMood(m.id)} onMouseEnter={()=>setHm(m.id)} onMouseLeave={()=>setHm(null)}
+                  style={{display:'flex',flexDirection:'column',alignItems:'flex-start',gap:3,padding:'13px 12px',background:mood===m.id?`${m.color}18`:hm===m.id?`${m.color}08`:C.bgCard,border:'1px solid',borderColor:mood===m.id?m.color:hm===m.id?`${m.color}55`:C.border,borderRadius:13,cursor:'pointer',textAlign:'left',transition:'all .13s',transform:hm===m.id?'scale(1.02)':'scale(1)'}}>
+                  <span style={{fontSize:18}}>{m.emoji}</span>
+                  <span style={{fontSize:13,fontWeight:700,color:mood===m.id?m.color:C.white}}>{m.label}</span>
+                  <span style={{fontSize:10,color:C.muted,lineHeight:1.4}}>{m.sub}</span>
+                </button>
+              ))}
+            </div>
+            <button onClick={()=>{if(mood)onGo(mood,pillar);}} disabled={!mood}
+              style={{width:'100%',padding:'14px 0',background:mood?`${sel?.color}20`:'transparent',border:'1.5px solid',borderColor:mood?sel?.color:C.border,borderRadius:12,fontSize:14,fontWeight:700,cursor:mood?'pointer':'not-allowed',fontFamily:"'Bricolage Grotesque',sans-serif",color:mood?sel?.color:C.muted,opacity:mood?1:.3,transition:'all .14s',letterSpacing:.3}}>
+              {mood?'spark me  →':'pick a vibe first'}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── SEARCH ── */
+    function Search({onResults,liked}){
+      const [q,setQ]=useState('');
+      const [loading,setL]=useState(false);
+      const [err,setErr]=useState(null);
+      const suggs=['how to tell a story with a reel','morning routine for creatives','how to write a hook','cinematic phone shots','grow on instagram without dancing','deep work routine','steal like an artist','writing that feels human','personal brand from scratch','how to batch content'];
+      const go=async(query)=>{
+        const t=(query||q).trim(); if(!t)return;
+        setL(true);setErr(null);
+        try{const r=await callGemini(searchPrompt(t,liked));onResults(r,t);}
+        catch{setErr("couldn't search — check connection");}
+        finally{setL(false);}
+      };
+      return(
+        <div style={{padding:'28px 18px',maxWidth:520,margin:'0 auto',width:'100%',boxSizing:'border-box',position:'relative'}}>
+          <Glow x="50%" y="30%" color="rgba(124,58,237,0.1)" size={360}/>
+          <div style={{position:'relative',zIndex:1}}>
+            <div style={{fontFamily:"'Instrument Serif',serif",fontStyle:'italic',fontSize:26,color:C.white,marginBottom:5}}>what's on your mind?</div>
+            <div style={{color:C.muted,fontSize:12,marginBottom:22}}>search anything — a skill, a feeling, a question</div>
+            <div style={{display:'flex',marginBottom:8}}>
+              <input autoFocus value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>e.key==='Enter'&&go()}
+                placeholder="e.g. make reels that feel real"
+                style={{flex:1,background:C.bgCard,border:`1px solid ${C.border}`,borderRight:'none',borderRadius:'11px 0 0 11px',padding:'12px 14px',color:C.white,fontSize:13,outline:'none',fontFamily:"'Bricolage Grotesque',sans-serif"}}/>
+              <button onClick={()=>go()} disabled={loading}
+                style={{background:C.vsoft,border:'none',borderRadius:'0 11px 11px 0',padding:'0 18px',color:C.bg,fontSize:17,fontWeight:800,cursor:'pointer'}}>
+                {loading?'…':'→'}
+              </button>
+            </div>
+            {err&&<div style={{color:C.rose,fontSize:11,marginBottom:12}}>{err}</div>}
+            <div style={{marginTop:22}}>
+              <div style={{fontSize:9,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:C.muted,marginBottom:11}}>or try one of these</div>
+              <div style={{display:'flex',flexWrap:'wrap',gap:7}}>
+                {suggs.map((sg,i)=>(
+                  <button key={i} onClick={()=>go(sg)}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor=C.vsoft;e.currentTarget.style.color=C.vsoft;}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.muted;}}
+                    style={{background:'transparent',border:`1px solid ${C.border}`,borderRadius:99,padding:'5px 12px',color:C.muted,fontSize:11,cursor:'pointer',fontFamily:"'Bricolage Grotesque',sans-serif",transition:'all .13s'}}>
+                    {sg}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── LOADING ── */
+    function Loading({mood,pillar,query}){
+      const m=MOODS.find(x=>x.id===mood), p=PILLARS.find(x=>x.id===pillar);
+      const [tick,setTick]=useState(0);
+      const msgs=query?[`searching "${query}"`,'pulling from real creatives','almost there']:['reading your taste history',`building ${p?.label||''} ideas`,'almost there'];
+      useEffect(()=>{const t=setInterval(()=>setTick(v=>v+1),900);return()=>clearInterval(t);},[]);
+      return(
+        <div style={{display:'flex',justifyContent:'center',alignItems:'center',minHeight:'calc(100vh - 48px)'}}>
+          <Glow x="50%" y="50%" color={`${m?.color||C.vsoft}20`} size={340}/>
+          <div style={{position:'relative',zIndex:1,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:12}}>
+            <div style={{fontSize:40}}>{query?'🔍':m?.emoji}</div>
+            <div style={{fontFamily:"'Instrument Serif',serif",fontStyle:'italic',fontSize:22,color:C.white}}>{query?'searching…':`${m?.label} × ${p?.label}`}</div>
+            <div style={{color:C.muted,fontSize:12}}>{msgs[tick%msgs.length]}</div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── IDEA CARD ── */
+    function Card({idea,onLike,onSkip,index,total}){
+      const tm=TM[idea.type]||TM['Try This'];
+      const rot=[-1.2,.8,-.5,1.4,-1.0,.6][index%6];
+      return(
+        <div style={{display:'flex',flexDirection:'column',padding:'22px 18px',maxWidth:520,margin:'0 auto',width:'100%',minHeight:'calc(100vh - 48px)',boxSizing:'border-box',justifyContent:'space-between',position:'relative'}}>
+          <Glow x="30%" y="60%" color={`${tm.color}16`} size={260}/>
+          <div style={{display:'flex',gap:4,marginBottom:18}}>
+            {Array.from({length:total}).map((_,i)=>(
+              <div key={i} style={{height:2,flex:1,borderRadius:99,background:i<index?C.vsoft:i===index?C.white:C.border,transition:'background .3s'}}/>
+            ))}
+          </div>
+          <div style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:20,padding:'22px 20px',display:'flex',flexDirection:'column',gap:14,flex:1,boxShadow:`0 0 50px rgba(124,58,237,.12)`,transform:`rotate(${rot}deg)`,position:'relative',overflow:'hidden'}}>
+            <div style={{position:'absolute',top:0,left:0,right:0,height:1,background:`linear-gradient(90deg,transparent,${tm.color}88,transparent)`}}/>
+            <div style={{display:'flex',gap:7,flexWrap:'wrap'}}>
+              <Pill label={idea.domain} bg={C.bgFloat} color={C.mid}/>
+              <Pill label={idea.type} bg={tm.bg} color={tm.color}/>
+            </div>
+            <div style={{fontFamily:"'Instrument Serif',serif",fontStyle:'italic',fontSize:23,color:C.white,lineHeight:1.25}}>{idea.title}</div>
+            <div style={{fontSize:13,color:C.mid,lineHeight:1.8}}>{idea.body}</div>
+            <div style={{background:C.bgFloat,borderRadius:11,padding:'13px 14px',display:'flex',flexDirection:'column',gap:9}}>
+              <div><div style={{fontSize:8,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:C.muted,marginBottom:3}}>look at</div><div style={{fontSize:12,color:C.peach,fontWeight:600}}>{idea.reference}</div></div>
+              <div style={{height:1,background:C.border}}/>
+              <div><div style={{fontSize:8,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:C.muted,marginBottom:3}}>why now</div><div style={{fontSize:12,color:C.mid,fontStyle:'italic'}}>{idea.why}</div></div>
+            </div>
+          </div>
+          <div style={{display:'flex',gap:10,marginTop:14,alignItems:'center'}}>
+            <button onClick={onSkip} onMouseEnter={e=>e.currentTarget.style.color=C.mid} onMouseLeave={e=>e.currentTarget.style.color=C.muted}
+              style={{flex:1,background:'transparent',border:'none',color:C.muted,fontSize:13,cursor:'pointer',padding:'13px 0',fontFamily:"'Bricolage Grotesque',sans-serif",fontWeight:500,textAlign:'center'}}>nah →</button>
+            <button onClick={onLike} onMouseEnter={e=>{e.currentTarget.style.background=C.vsoft;e.currentTarget.style.color=C.bg;}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color=C.vsoft;}}
+              style={{flex:2,background:'transparent',border:`1.5px solid ${C.vsoft}`,borderRadius:12,color:C.vsoft,fontSize:13,fontWeight:700,cursor:'pointer',padding:'13px 0',fontFamily:"'Bricolage Grotesque',sans-serif",transition:'all .15s',letterSpacing:.3}}>save this ✦</button>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── BOARD ── */
+    function Board({liked,userId,onDelete}){
+      const [filter,setFilter]=useState('all');
+      const domains=['all',...new Set(liked.map(i=>i.domain))];
+      const filtered=filter==='all'?liked:liked.filter(i=>i.domain===filter);
+      return(
+        <div style={{padding:'24px 18px',maxWidth:520,margin:'0 auto',width:'100%',boxSizing:'border-box'}}>
+          <div style={{marginBottom:16}}>
+            <div style={{fontFamily:"'Instrument Serif',serif",fontStyle:'italic',fontSize:24,color:C.white,marginBottom:2}}>your board</div>
+            <div style={{fontSize:11,color:C.muted}}>{liked.length} ideas saved · synced to cloud ✦</div>
+          </div>
+          <div style={{display:'flex',gap:7,flexWrap:'wrap',marginBottom:18}}>
+            {domains.map(d=>(
+              <button key={d} onClick={()=>setFilter(d)}
+                style={{padding:'4px 13px',borderRadius:99,border:'1px solid',fontSize:11,fontWeight:600,cursor:'pointer',fontFamily:"'Bricolage Grotesque',sans-serif",background:filter===d?C.vsoft:'transparent',color:filter===d?C.bg:C.muted,borderColor:filter===d?C.vsoft:C.border,transition:'all .14s'}}>{d}</button>
+            ))}
+          </div>
+          {filtered.length===0
+            ?<div style={{color:C.muted,fontSize:14,textAlign:'center',marginTop:60,lineHeight:2,fontFamily:"'Instrument Serif',serif",fontStyle:'italic'}}>nothing here yet.<br/>go save some ideas first :)</div>
+            :<div style={{display:'flex',flexDirection:'column',gap:12}}>
+              {[...filtered].reverse().map((idea,i)=>{
+                const tm=TM[idea.type]||TM['Try This'];
+                return(
+                  <div key={idea.id||i} style={{background:C.bgCard,border:`1px solid ${C.border}`,borderRadius:14,padding:'16px 17px',transform:`rotate(${[-.7,.5,-.3,.8][i%4]}deg)`,position:'relative',overflow:'hidden'}}>
+                    <div style={{position:'absolute',top:0,left:0,right:0,height:1,background:`linear-gradient(90deg,transparent,${tm.color}66,transparent)`}}/>
+                    <div style={{display:'flex',gap:7,marginBottom:8,alignItems:'center',justifyContent:'space-between'}}>
+                      <div style={{display:'flex',gap:7}}><Pill label={idea.domain} bg={C.bgFloat} color={C.mid}/><Pill label={idea.type} bg={tm.bg} color={tm.color}/></div>
+                      <button onClick={()=>onDelete(idea.id)} style={{background:'transparent',border:'none',color:C.muted,fontSize:14,cursor:'pointer',padding:'2px 4px',lineHeight:1}} title="remove">×</button>
+                    </div>
+                    <div style={{fontFamily:"'Instrument Serif',serif",fontStyle:'italic',fontSize:15,color:C.white,marginBottom:6,lineHeight:1.3}}>{idea.title}</div>
+                    <div style={{fontSize:11,color:C.mid,lineHeight:1.6}}>{idea.body}</div>
+                    <div style={{display:'flex',gap:7,marginTop:9,alignItems:'center'}}>
+                      <span style={{fontSize:8,fontWeight:800,letterSpacing:2,textTransform:'uppercase',color:C.muted}}>look at</span>
+                      <span style={{color:C.peach,fontSize:11,fontWeight:600}}>{idea.reference}</span>
+                    </div>
+                    <div style={{color:C.muted,fontSize:10,marginTop:6}}>{idea.mood||''} · {idea.pillar||''} · {idea.saved_at ? new Date(idea.saved_at).toLocaleDateString() : idea.savedAt||''}</div>
+                  </div>
+                );
+              })}
+            </div>
+          }
+        </div>
+      );
+    }
+
+    /* ── DONE ── */
+    function Done({onMore,onBoard,onSearch}){
+      return(
+        <div style={{display:'flex',justifyContent:'center',alignItems:'center',minHeight:'calc(100vh - 48px)'}}>
+          <Glow x="50%" y="50%" color="rgba(124,58,237,0.12)" size={380}/>
+          <div style={{position:'relative',zIndex:1,textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:16}}>
+            <div style={{fontSize:36}}>✦</div>
+            <div style={{fontFamily:"'Instrument Serif',serif",fontStyle:'italic',fontSize:24,color:C.white}}>that's the batch</div>
+            <div style={{color:C.muted,fontSize:13,maxWidth:240,lineHeight:1.8}}>your taste is logged and saved to your account.</div>
+            <div style={{display:'flex',gap:9,marginTop:6,flexWrap:'wrap',justifyContent:'center'}}>
+              <button onClick={onMore} onMouseEnter={e=>{e.currentTarget.style.background=C.vsoft;e.currentTarget.style.color=C.bg;}} onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color=C.vsoft;}}
+                style={{background:'transparent',border:`1.5px solid ${C.vsoft}`,borderRadius:12,color:C.vsoft,fontSize:13,fontWeight:700,cursor:'pointer',padding:'12px 22px',fontFamily:"'Bricolage Grotesque',sans-serif",transition:'all .15s'}}>more pls ✦</button>
+              <button onClick={onSearch} onMouseEnter={e=>e.currentTarget.style.color=C.mid} onMouseLeave={e=>e.currentTarget.style.color=C.muted}
+                style={{background:'transparent',border:'none',color:C.muted,fontSize:13,cursor:'pointer',padding:'12px 14px',fontFamily:"'Bricolage Grotesque',sans-serif"}}>search →</button>
+              <button onClick={onBoard} onMouseEnter={e=>e.currentTarget.style.color=C.mid} onMouseLeave={e=>e.currentTarget.style.color=C.muted}
+                style={{background:'transparent',border:'none',color:C.muted,fontSize:13,cursor:'pointer',padding:'12px 14px',fontFamily:"'Bricolage Grotesque',sans-serif"}}>board →</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── ROOT APP ── */
+    function App(){
+      const [user,setUser]     = useState(null);
+      const [ready,setReady]   = useState(false);
+      const [liked,setLiked]   = useState([]);
+      const [skipped,setSkipped]=useState([]);
+      const [screen,setScreen] = useState('home');
+      const [prev,setPrev]     = useState(null);
+      const [mood,setMood]     = useState(null);
+      const [pillar,setPillar] = useState('all');
+      const [query,setQuery]   = useState(null);
+      const [ideas,setIdeas]   = useState([]);
+      const [idx,setIdx]       = useState(0);
+      const [err,setErr]       = useState(null);
+
+      // Called by vanilla JS once auth+gemini key are confirmed
+      useEffect(()=>{
+        window.__sparkUserReady = async (u) => {
+          setUser(u);
+          if(u){
+            const [l,s] = await Promise.all([DB.getLiked(u.id), DB.getSkipped(u.id)]);
+            setLiked(l); setSkipped(s);
+          }
+          setReady(true);
+        };
+        // Check if already booted (page refresh with session)
+        sb.auth.getSession().then(({data:{session}})=>{
+          if(session?.user && localStorage.getItem('spark_gemini_key')){
+            window.__sparkUserReady(session.user);
+          }
+        });
+        return () => { delete window.__sparkUserReady; };
+      },[]);
+
+      const goTo=(to)=>{setPrev(screen);setScreen(to);};
+      const goBack=()=>{ if(screen==='search'||screen==='board'){setScreen(prev||'home');return;} setScreen('home'); };
+
+      const handleGo=async(m,p)=>{
+        setMood(m);setPillar(p);setQuery(null);setScreen('loading');setErr(null);
+        try{
+          const f=await callGemini(moodPrompt(m,p,liked,skipped));
+          if(user) DB.logMood(user.id,m,p);
+          setIdeas(f);setIdx(0);setScreen('ideas');
+        }catch{setErr("couldn't load — check connection");setScreen('home');}
+      };
+
+      const handleResults=(r,q)=>{setQuery(q);setIdeas(r);setIdx(0);setScreen('ideas');};
+
+      const handleLike=async()=>{
+        const idea={...ideas[idx]};
+        const entry={...idea,mood,pillar,savedAt:new Date().toLocaleDateString()};
+        setLiked(prev=>[...prev,entry]);
+        if(user) await DB.saveLiked(user.id,{title:idea.title,domain:idea.domain,type:idea.type,body:idea.body,reference:idea.reference,why:idea.why,mood,pillar});
+        adv();
+      };
+      const handleSkip=async()=>{
+        const item={title:ideas[idx].title,mood};
+        setSkipped(prev=>[...prev,item]);
+        if(user) await DB.saveSkipped(user.id,item);
+        adv();
+      };
+      const handleDelete=async(id)=>{
+        setLiked(prev=>prev.filter(i=>i.id!==id));
+        if(user) await DB.deleteLiked(user.id,id);
+      };
+      const handleSignOut=async()=>{
+        await sb.auth.signOut();
+        localStorage.removeItem('spark_gemini_key');
+        window.location.reload();
+      };
+      const adv=()=>{if(idx+1>=ideas.length)setScreen('done');else setIdx(i=>i+1);};
+
+      if(!ready) return(
+        <div style={{display:'flex',justifyContent:'center',alignItems:'center',minHeight:'100vh',color:C.muted,fontSize:13,fontFamily:"'Bricolage Grotesque',sans-serif"}}>
+          <Glow x="50%" y="50%" color="rgba(124,58,237,0.1)" size={300}/>
+        </div>
+      );
+
+      return(
+        <div style={{minHeight:'100vh',background:C.bg,fontFamily:"'Bricolage Grotesque',sans-serif",color:C.white,position:'relative',overflow:'hidden'}}>
+          <Nav screen={screen} onBack={goBack} onHome={()=>setScreen('home')} onBoard={()=>goTo('board')} onSearch={()=>goTo('search')} likedCount={liked.length} userEmail={user?.email} onSignOut={handleSignOut}/>
+          {err&&<div style={{background:'#1a0812',borderBottom:'1px solid #3a1028',color:'#f472b6',padding:'9px 20px',fontSize:11}}>{err}</div>}
+          {screen==='home'    &&<Home onGo={handleGo} onSearch={()=>goTo('search')} liked={liked}/>}
+          {screen==='search'  &&<Search onResults={handleResults} liked={liked}/>}
+          {screen==='loading' &&<Loading mood={mood} pillar={pillar} query={query}/>}
+          {screen==='ideas'   &&ideas[idx]&&<Card idea={{...ideas[idx],mood}} onLike={handleLike} onSkip={handleSkip} index={idx} total={ideas.length}/>}
+          {screen==='board'   &&<Board liked={liked} userId={user?.id} onDelete={handleDelete}/>}
+          {screen==='done'    &&<Done onMore={()=>setScreen('home')} onBoard={()=>setScreen('board')} onSearch={()=>setScreen('search')}/>}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>
